@@ -1,0 +1,14 @@
+{
+  "name": "termirator",
+  "version": "1.0.0",
+  "description": "Cyberdyne Systems Model 101 Terminal with real shell capabilities",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  }
+}

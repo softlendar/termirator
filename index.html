@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TERMIRATOR SYSTEMS // Cyberdyne Systems Model 101</title>
+        <link rel="stylesheet" href="css/style.css" />
+    </head>
+    <body>
+        <div id="boot-sequence"></div>
+        <div id="scanline-overlay"></div>
+        <div id="crt-overlay"></div>
+        <div id="red-eye-overlay"></div>
+        <div id="thermal-overlay"></div>
+        <div id="night-vision-overlay"></div>
+        <div id="target-lock-overlay"></div>
+        <canvas id="matrix-overlay"></canvas>
+
+        <div id="voice-indicator" class="hidden">
+            <div class="voice-wave"></div>
+            <div class="voice-wave"></div>
+            <div class="voice-wave"></div>
+            <span id="voice-indicator-text">SPEECH SYNTHESIS ACTIVE</span>
+        </div>
+
+        <div id="hud-frame">
+            <div id="hud-top">
+                <span class="hud-left">CYBERDYNE SYSTEMS // SERIES 800</span>
+                <span class="hud-center" id="mission-timer"
+                    >T-MINUS: 00:00:00</span
+                >
+                <span class="hud-right">MODEL 101 v2.4</span>
+            </div>
+            <div id="hud-bottom">
+                <span class="hud-left" id="cpu-status">CPU: ONLINE</span>
+                <span class="hud-center" id="shell-status">SHELL: OFFLINE</span>
+                <span class="hud-right" id="power-level">POWER: 100%</span>
+            </div>
+        </div>
+
+        <div id="side-panel">
+            <div class="panel-section">
+                <h3>> OPTICAL SYSTEMS</h3>
+                <div class="vision-modes">
+                    <button data-mode="normal" class="active">NORMAL</button>
+                    <button data-mode="thermal">THERMAL</button>
+                    <button data-mode="night">NIGHT</button>
+                    <button data-mode="red-eye">RED EYE</button>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h3>> WEAPON SYSTEMS</h3>
+                <div id="weapon-status">
+                    <div class="weapon-item">
+                        <span class="weapon-name">PLASMA RIFLE</span>
+                        <span class="weapon-ammo" id="plasma-ammo">100%</span>
+                    </div>
+                    <div class="weapon-item">
+                        <span class="weapon-name">12GA SHOTGUN</span>
+                        <span class="weapon-ammo" id="shotgun-ammo">8/8</span>
+                    </div>
+                    <div class="weapon-item">
+                        <span class="weapon-name">MINIGUN</span>
+                        <span class="weapon-ammo" id="minigun-ammo">READY</span>
+                    </div>
+                    <div class="weapon-item">
+                        <span class="weapon-name">HANDS</span>
+                        <span class="weapon-ammo" id="hands-status"
+                            >LETHAL</span
+                        >
+                    </div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h3>> TERMITORIA</h3>
+                <div id="ai-agent">
+                    <div id="ai-model-list">
+                        <div
+                            class="ai-model active"
+                            data-model="qwen2.5"
+                            data-provider="ollama"
+                        >
+                            <span class="ai-name">Qwen 2.5</span>
+                            <span class="ai-badge">TERMITORIA</span>
+                        </div>
+                    </div>
+                    <div id="ai-status">
+                        <span class="ai-indicator"></span>
+                        <span id="ai-status-text">AGENT OFFLINE</span>
+                    </div>
+                    <div id="ai-chat-box">
+                        <input
+                            type="text"
+                            id="ai-chat-input"
+                            placeholder="Ask TERMITORIA..."
+                            autocomplete="off"
+                            disabled
+                        />
+                        <button id="ai-chat-send" disabled>></button>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-section">
+                <h3>> TARGET ACQUISITION</h3>
+                <div id="target-list">
+                    <div class="no-targets">NO TARGETS ACQUIRED</div>
+                </div>
+            </div>
+            <div class="panel-section panel-footer">
+                <button id="reader-btn">
+                    <span class="reader-icon">&#128266;</span> READER: OFF
+                </button>
+            </div>
+        </div>
+
+        <div id="terminal-container">
+            <div id="tab-bar"></div>
+            <div id="terminal-output"></div>
+            <div id="input-line">
+                <span class="prompt" id="prompt">T-101></span>
+                <div id="input-wrap">
+                    <input
+                        type="text"
+                        id="terminal-input"
+                        autocomplete="off"
+                        spellcheck="false"
+                        autofocus
+                    />
+                    <div id="autocomplete-box"></div>
+                </div>
+                <span class="cursor-blink">_</span>
+            </div>
+        </div>
+
+        <script src="js/powers.js"></script>
+        <script src="js/terminal.js"></script>
+    </body>
+</html>
