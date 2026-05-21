@@ -232,8 +232,12 @@ async fn handle_socket(socket: WebSocket) {
         shell_cmd.arg("/Q");
     }
 
+    let home_dir = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| "/".to_string());
+
     let mut child = match shell_cmd
-        .current_dir(std::env::current_dir().unwrap_or_default())
+        .current_dir(&home_dir)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

@@ -4,6 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>TERMIRATOR SYSTEMS // Cyberdyne Systems Model 101</title>
+        <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
         <link rel="stylesheet" href="css/style.css" />
     </head>
     <body>
@@ -25,7 +26,68 @@
 
         <div id="hud-frame">
             <div id="hud-top">
-                <span class="hud-left">CYBERDYNE SYSTEMS // SERIES 800</span>
+                <span class="hud-left">
+                    <svg
+                        class="logo"
+                        viewBox="0 0 60 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <rect
+                            width="60"
+                            height="24"
+                            fill="#000"
+                            stroke="#00ff41"
+                            stroke-width="1"
+                        />
+                        <line
+                            x1="30"
+                            y1="2"
+                            x2="30"
+                            y2="22"
+                            stroke="#00ff41"
+                            stroke-width="0.5"
+                            opacity="0.6"
+                        />
+                        <line
+                            x1="2"
+                            y1="12"
+                            x2="58"
+                            y2="12"
+                            stroke="#00ff41"
+                            stroke-width="0.5"
+                            opacity="0.6"
+                        />
+                        <line
+                            x1="8"
+                            y1="4"
+                            x2="52"
+                            y2="20"
+                            stroke="#00ff41"
+                            stroke-width="0.5"
+                            opacity="0.3"
+                        />
+                        <line
+                            x1="52"
+                            y1="4"
+                            x2="8"
+                            y2="20"
+                            stroke="#00ff41"
+                            stroke-width="0.5"
+                            opacity="0.3"
+                        />
+                        <text
+                            x="30"
+                            y="15"
+                            text-anchor="middle"
+                            fill="#00ff41"
+                            font-family="Orbitron, monospace"
+                            font-size="10"
+                            font-weight="700"
+                        >
+                            vl;
+                        </text>
+                    </svg>
+                </span>
                 <span class="hud-center" id="mission-timer"
                     >T-MINUS: 00:00:00</span
                 >
@@ -131,6 +193,10 @@
                 <span class="cursor-blink">_</span>
             </div>
         </div>
+
+        <button id="panel-toggle" title="Toggle side panel">
+            <span>&#9776;</span>
+        </button>
 
         <script src="js/powers.js"></script>
         <script src="js/terminal.js"></script>
