@@ -1,4 +1,4 @@
-#hello friends
+# hello friends
 - this is the worlds only terminal that will have an agent called the termitoria
 - this will have a reader which will read outputs of the cmd's you will run in it
 - the weapons, targets, agent and the reader toggling btn which alows you to turn the reader on and of
