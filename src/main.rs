@@ -1,11 +1,11 @@
 /**
- * TERMIRATOR BACKEND
- * Cyberdyne Systems Neural Net Processor - Rust Implementation
- * Persistent shell session + AI agent via WebSocket/HTTP
+ * TERMIRATOR BACKEND — v2.0
+ * Cyberdyne Systems Neural Net Processor
+ * Multi-shell: one isolated shell process per WebSocket connection
  */
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    extract::Json,
+    extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -13,6 +13,7 @@ use axum::{
 };
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -21,7 +22,7 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 
 /* ------------------------------------------------------------------ */
-/*  Shell Protocol types                                                */
+/*  Types                                                               */
 /* ------------------------------------------------------------------ */
 
 #[derive(Deserialize)]
@@ -39,10 +40,6 @@ struct ShellResponse {
     resp_type: String,
     data: String,
 }
-
-/* ------------------------------------------------------------------ */
-/*  AI Protocol types                                                   */
-/* ------------------------------------------------------------------ */
 
 #[derive(Deserialize)]
 struct AiChatRequest {
@@ -67,29 +64,34 @@ struct AiChatResponse {
     error: Option<String>,
 }
 
+type SessionMap = Arc<Mutex<HashMap<String, SessionHandle>>>;
+
+struct SessionHandle {
+    tx: tokio::sync::mpsc::UnboundedSender<String>,
+}
+
 /* ------------------------------------------------------------------ */
 /*  Entry point                                                         */
 /* ------------------------------------------------------------------ */
 
 #[tokio::main]
 async fn main() {
-    // Shared reqwest client for AI calls
-    let http_client = reqwest::Client::new();
+    let http_client = Arc::new(reqwest::Client::new());
+    let sessions: SessionMap = Arc::new(Mutex::new(HashMap::new()));
 
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/api/ai/chat", post(ai_chat_handler))
-        .with_state(Arc::new(http_client))
+        .with_state((http_client.clone(), sessions.clone()))
         .fallback_service(ServeDir::new("."));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
-
     println!(
         r#"
     ========================================
     CYBERDYNE SYSTEMS // TERMIRATOR SHELL
-    Model 101 Neural Net Processor Online
-    AI Agent Module: ACTIVE
+    Model 101 Neural Net Processor v2.0
+    Multi-shell mode: ACTIVE
     Listening on port {}
     ========================================
     "#,
@@ -105,13 +107,13 @@ async fn main() {
 /* ------------------------------------------------------------------ */
 
 async fn ai_chat_handler(
-    axum::extract::State(client): axum::extract::State<Arc<reqwest::Client>>,
+    State((client, _sessions)): State<(Arc<reqwest::Client>, SessionMap)>,
     Json(req): Json<AiChatRequest>,
 ) -> impl IntoResponse {
     let result = match req.provider.as_str() {
         "ollama" => call_ollama(&client, &req.model, &req.prompt).await,
         _ => Err(format!(
-            "Only Ollama/Qwen 2.5 is supported. Provider '{}' disabled.",
+            "Only Ollama is supported. Provider '{}' disabled.",
             req.provider
         )),
     };
@@ -138,10 +140,6 @@ async fn ai_chat_handler(
     }
 }
 
-/* ------------------------------------------------------------------ */
-/*  AI Provider Calls                                                   */
-/* ------------------------------------------------------------------ */
-
 async fn call_ollama(
     client: &reqwest::Client,
     model: &str,
@@ -153,7 +151,6 @@ async fn call_ollama(
         prompt: String,
         stream: bool,
     }
-
     #[derive(Deserialize)]
     struct Resp {
         response: String,
@@ -186,18 +183,29 @@ async fn call_ollama(
 }
 
 /* ------------------------------------------------------------------ */
-/*  WebSocket handler                                                   */
+/*  WebSocket — one shell per connection                                */
 /* ------------------------------------------------------------------ */
 
-async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
-    ws.on_upgrade(handle_socket)
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State((_client, sessions)): State<(Arc<reqwest::Client>, SessionMap)>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, sessions))
 }
 
-async fn handle_socket(socket: WebSocket) {
+async fn handle_socket(socket: WebSocket, sessions: SessionMap) {
     let (mut sender, mut receiver) = socket.split();
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let session_id = uuid::Uuid::new_v4().to_string();
 
+    // Register session
+    {
+        let mut map = sessions.lock().await;
+        map.insert(session_id.clone(), SessionHandle { tx: tx.clone() });
+    }
+
+    // Forward task: route messages to this WebSocket
     let forward_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             if sender.send(Message::Text(msg)).await.is_err() {
@@ -206,20 +214,7 @@ async fn handle_socket(socket: WebSocket) {
         }
     });
 
-    let hostname = get_hostname();
-    let platform = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-
-    let welcome = ShellResponse {
-        resp_type: "system".to_string(),
-        data: format!(
-            "CONNECTED: {} | {} {} | Shell: {}",
-            hostname, platform, arch, shell
-        ),
-    };
-    let _ = tx.send(serde_json::to_string(&welcome).unwrap());
-
+    // Spawn isolated shell for this connection
     let is_win = cfg!(windows);
     let mut shell_cmd = if is_win {
         Command::new("cmd.exe")
@@ -250,10 +245,29 @@ async fn handle_socket(socket: WebSocket) {
                 data: format!("Failed to spawn shell: {}", e),
             };
             let _ = tx.send(serde_json::to_string(&resp).unwrap());
-            forward_task.abort();
+            // Cleanup on failure
+            let mut map = sessions.lock().await;
+            map.remove(&session_id);
             return;
         }
     };
+
+    let hostname = get_hostname();
+    let platform = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+
+    let welcome = ShellResponse {
+        resp_type: "system".to_string(),
+        data: format!(
+            "CONNECTED [{}] | {} {} | Shell: {}",
+            &session_id[..8],
+            platform,
+            arch,
+            shell
+        ),
+    };
+    let _ = tx.send(serde_json::to_string(&welcome).unwrap());
 
     let stdin = child.stdin.take().expect("stdin piped");
     let stdout = child.stdout.take().expect("stdout piped");
@@ -264,7 +278,10 @@ async fn handle_socket(socket: WebSocket) {
     let tx_stdout = tx.clone();
     let tx_stderr = tx.clone();
     let tx_exit = tx.clone();
+    let session_id_stdout = session_id.clone();
+    let session_id_stderr = session_id.clone();
 
+    // Forward stdout
     tokio::spawn(async move {
         let reader = BufReader::new(stdout);
         let mut lines = reader.lines();
@@ -285,6 +302,7 @@ async fn handle_socket(socket: WebSocket) {
         }
     });
 
+    // Forward stderr
     tokio::spawn(async move {
         let reader = BufReader::new(stderr);
         let mut lines = reader.lines();
@@ -305,6 +323,7 @@ async fn handle_socket(socket: WebSocket) {
         }
     });
 
+    // Monitor child exit
     tokio::spawn(async move {
         let status = child.wait().await;
         let msg = match status {
@@ -324,6 +343,7 @@ async fn handle_socket(socket: WebSocket) {
         let _ = tx_exit.send(serde_json::to_string(&resp).unwrap());
     });
 
+    // Read incoming WebSocket messages and write to this connection's shell
     while let Some(Ok(msg)) = receiver.next().await {
         if let Message::Text(text) = msg {
             let req: ShellRequest = match serde_json::from_str(&text) {
@@ -376,7 +396,10 @@ async fn handle_socket(socket: WebSocket) {
         }
     }
 
+    // Cleanup
     forward_task.abort();
+    let mut map = sessions.lock().await;
+    map.remove(&session_id);
 }
 
 fn get_hostname() -> String {
